@@ -1,0 +1,71 @@
+trigger:
+- none
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+# 🔹 Parameter to choose action
+parameters:
+- name: action
+  displayName: "Select Action"
+  type: string
+  default: apply
+  values:
+  - apply
+  - destroy
+
+variables:
+- group: terraform-bootstrap-vars
+
+stages:
+- stage: Terraform
+  displayName: "Terraform Stage"
+  jobs:
+  - job: TerraformJob
+    displayName: "Terraform Execution"
+    steps:
+
+    # 🔐 Azure Login
+    - task: AzureCLI@2
+      displayName: "Azure Login"
+      inputs:
+        azureSubscription: 'terraform_bootstarp'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az account show
+
+    # 📦 Install Terraform
+    - task: TerraformInstaller@1
+      displayName: "Install Terraform"
+      inputs:
+        terraformVersion: 'latest'
+
+    # 🚀 Init
+    - script: terraform init
+      displayName: "Terraform Init"
+
+    # ✅ Format Check
+    - script: terraform fmt -check
+      displayName: "Terraform Format Check"
+      condition: eq('${{ parameters.action }}', 'apply')
+
+    # ✅ Validate
+    - script: terraform validate
+      displayName: "Terraform Validate"
+      condition: eq('${{ parameters.action }}', 'apply')
+
+    # 📊 Plan
+    - script: terraform plan -out=tfplan
+      displayName: "Terraform Plan"
+      condition: eq('${{ parameters.action }}', 'apply')
+
+    # 🚀 Apply
+    - script: terraform apply -auto-approve tfplan
+      displayName: "Terraform Apply"
+      condition: eq('${{ parameters.action }}', 'apply')
+
+    # 💣 Destroy
+    - script: terraform destroy -auto-approve
+      displayName: "Terraform Destroy"
+      condition: eq('${{ parameters.action }}', 'destroy')
