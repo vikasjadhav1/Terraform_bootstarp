@@ -49,7 +49,7 @@ resource "azurerm_key_vault" "kv" {
   sku_name = "standard"
 
   enable_rbac_authorization  = true
-  purge_protection_enabled   = true
+  purge_protection_enabled   = false
   soft_delete_retention_days = 7
 
   tags = {
