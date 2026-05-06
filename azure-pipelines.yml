@@ -4,7 +4,6 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
-# 🔹 Parameter to choose action
 parameters:
 - name: action
   displayName: "Select Action"
@@ -27,66 +26,73 @@ stages:
 
     steps:
 
-    # 🔐 Azure Login using Service Connection
-    - task: AzureCLI@2
-      displayName: "Azure Login"
-      inputs:
-        azureSubscription: 'terraform_bootstarp'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          az account show
-
-    # 📦 Install Terraform
+    # Install Terraform
     - task: TerraformInstaller@1
       displayName: "Install Terraform"
       inputs:
         terraformVersion: '1.5.0'
 
-    # 🚀 Terraform Init
-    - script: |
-        terraform init
+    # Terraform Init
+    - task: TerraformTaskV4@4
       displayName: "Terraform Init"
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        environmentServiceNameAzureRM: 'terraform_bootstarp'
 
-    # ✅ Terraform Format Check
-    - script: |
-        terraform fmt -check
+    # Terraform Format Check
+    - script: terraform fmt -check
       displayName: "Terraform Format Check"
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # ✅ Terraform Validate
-    - script: |
-        terraform validate
+    # Terraform Validate
+    - task: TerraformTaskV4@4
       displayName: "Terraform Validate"
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # 📊 Terraform Plan
-    - script: |
-        terraform plan \
-        -var "resource_group_name=$(resource_group_name)" \
-        -var "location=$(location)" \
-        -var "environment=$(environment)" \
-        -var "storage_account_name=$(storage_account_name)" \
-        -var "container_name=$(container_name)" \
-        -var "key_vault_name=$(key_vault_name)" \
-        -out=tfplan
+    # Terraform Plan
+    - task: TerraformTaskV4@4
       displayName: "Terraform Plan"
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        environmentServiceNameAzureRM: 'terraform_bootstarp'
+        commandOptions: >
+          -var "resource_group_name=$(resource_group_name)"
+          -var "location=$(location)"
+          -var "environment=$(environment)"
+          -var "storage_account_name=$(storage_account_name)"
+          -var "container_name=$(container_name)"
+          -var "key_vault_name=$(key_vault_name)"
+          -out=tfplan
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # 🚀 Terraform Apply
-    - script: |
-        terraform apply -auto-approve tfplan
+    # Terraform Apply
+    - task: TerraformTaskV4@4
       displayName: "Terraform Apply"
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        environmentServiceNameAzureRM: 'terraform_bootstarp'
+        commandOptions: 'tfplan'
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # 💣 Terraform Destroy
-    - script: |
-        terraform destroy -auto-approve \
-        -var "resource_group_name=$(resource_group_name)" \
-        -var "location=$(location)" \
-        -var "environment=$(environment)" \
-        -var "storage_account_name=$(storage_account_name)" \
-        -var "container_name=$(container_name)" \
-        -var "key_vault_name=$(key_vault_name)"
+    # Terraform Destroy
+    - task: TerraformTaskV4@4
       displayName: "Terraform Destroy"
+      inputs:
+        provider: 'azurerm'
+        command: 'destroy'
+        environmentServiceNameAzureRM: 'terraform_bootstarp'
+        commandOptions: >
+          -auto-approve
+          -var "resource_group_name=$(resource_group_name)"
+          -var "location=$(location)"
+          -var "environment=$(environment)"
+          -var "storage_account_name=$(storage_account_name)"
+          -var "container_name=$(container_name)"
+          -var "key_vault_name=$(key_vault_name)"
       condition: eq('${{ parameters.action }}', 'destroy')
