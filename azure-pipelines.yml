@@ -4,6 +4,7 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
+# 🔹 Select Action
 parameters:
 - name: action
   displayName: "Select Action"
@@ -13,12 +14,13 @@ parameters:
   - apply
   - destroy
 
+# 🔹 Variable Group from Azure DevOps Library
 variables:
 - group: terraform-bootstrap-vars
 
 stages:
 - stage: Terraform
-  displayName: "Terraform Stage"
+  displayName: "Terraform Bootstrap Stage"
 
   jobs:
   - job: TerraformJob
@@ -26,26 +28,34 @@ stages:
 
     steps:
 
-    # Install Terraform
+    # 📦 Install Terraform
     - task: TerraformInstaller@1
       displayName: "Install Terraform"
       inputs:
         terraformVersion: '1.5.0'
 
-    # Terraform Init
+    # 🚀 Terraform Init
     - task: TerraformTaskV4@4
       displayName: "Terraform Init"
       inputs:
         provider: 'azurerm'
         command: 'init'
-        environmentServiceNameAzureRM: 'terraform_bootstarp'
 
-    # Terraform Format Check
+        # 🔐 Service Connection for Backend Authentication
+        backendServiceArm: 'terraform_bootstarp'
+
+        # 🔹 Remote Backend Config
+        backendAzureRmResourceGroupName: '$(resource_group_name)'
+        backendAzureRmStorageAccountName: '$(storage_account_name)'
+        backendAzureRmContainerName: '$(container_name)'
+        backendAzureRmKey: 'bootstrap.tfstate'
+
+    # ✅ Terraform Format Check
     - script: terraform fmt -check
       displayName: "Terraform Format Check"
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # Terraform Validate
+    # ✅ Terraform Validate
     - task: TerraformTaskV4@4
       displayName: "Terraform Validate"
       inputs:
@@ -53,13 +63,16 @@ stages:
         command: 'validate'
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # Terraform Plan
+    # 📊 Terraform Plan
     - task: TerraformTaskV4@4
       displayName: "Terraform Plan"
       inputs:
         provider: 'azurerm'
         command: 'plan'
+
+        # 🔐 Service Connection for Deployment Authentication
         environmentServiceNameAzureRM: 'terraform_bootstarp'
+
         commandOptions: >
           -var "resource_group_name=$(resource_group_name)"
           -var "location=$(location)"
@@ -70,23 +83,27 @@ stages:
           -out=tfplan
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # Terraform Apply
+    # 🚀 Terraform Apply
     - task: TerraformTaskV4@4
       displayName: "Terraform Apply"
       inputs:
         provider: 'azurerm'
         command: 'apply'
+
         environmentServiceNameAzureRM: 'terraform_bootstarp'
+
         commandOptions: 'tfplan'
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # Terraform Destroy
+    # 💣 Terraform Destroy
     - task: TerraformTaskV4@4
       displayName: "Terraform Destroy"
       inputs:
         provider: 'azurerm'
         command: 'destroy'
+
         environmentServiceNameAzureRM: 'terraform_bootstarp'
+
         commandOptions: >
           -auto-approve
           -var "resource_group_name=$(resource_group_name)"
