@@ -14,7 +14,7 @@ parameters:
   - apply
   - destroy
 
-# 🔹 Variable Group from Azure DevOps Library
+# 🔹 Variable Group
 variables:
 - group: terraform-bootstrap-vars
 
@@ -34,21 +34,20 @@ stages:
       inputs:
         terraformVersion: '1.5.0'
 
-    # 🚀 Terraform Init
+    # 🔽 Download Existing State Before Destroy
+    - task: DownloadPipelineArtifact@2
+      displayName: "Download Terraform State"
+      inputs:
+        artifact: 'tfstate'
+        path: '$(System.DefaultWorkingDirectory)'
+      condition: eq('${{ parameters.action }}', 'destroy')
+
+    # 🚀 Terraform Init (LOCAL STATE)
     - task: TerraformTaskV4@4
       displayName: "Terraform Init"
       inputs:
         provider: 'azurerm'
         command: 'init'
-
-        # 🔐 Service Connection for Backend Authentication
-        backendServiceArm: 'terraform_bootstarp'
-
-        # 🔹 Remote Backend Config
-        backendAzureRmResourceGroupName: '$(resource_group_name)'
-        backendAzureRmStorageAccountName: '$(storage_account_name)'
-        backendAzureRmContainerName: '$(container_name)'
-        backendAzureRmKey: 'bootstrap.tfstate'
 
     # ✅ Terraform Format Check
     - script: terraform fmt -check
@@ -70,7 +69,6 @@ stages:
         provider: 'azurerm'
         command: 'plan'
 
-        # 🔐 Service Connection for Deployment Authentication
         environmentServiceNameAzureRM: 'terraform_bootstarp'
 
         commandOptions: >
@@ -93,6 +91,14 @@ stages:
         environmentServiceNameAzureRM: 'terraform_bootstarp'
 
         commandOptions: 'tfplan'
+      condition: eq('${{ parameters.action }}', 'apply')
+
+    # 📤 Upload State After Apply
+    - task: PublishPipelineArtifact@1
+      displayName: "Publish Terraform State"
+      inputs:
+        targetPath: 'terraform.tfstate'
+        artifact: 'tfstate'
       condition: eq('${{ parameters.action }}', 'apply')
 
     # 💣 Terraform Destroy
