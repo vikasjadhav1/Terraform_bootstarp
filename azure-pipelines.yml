@@ -34,12 +34,16 @@ stages:
       inputs:
         terraformVersion: '1.5.0'
 
-    # 🔽 Download Existing State Before Destroy
+    # 🔽 Download Terraform State for Destroy
     - task: DownloadPipelineArtifact@2
       displayName: "Download Terraform State"
       inputs:
-        artifact: 'tfstate'
-        path: '$(System.DefaultWorkingDirectory)'
+        buildType: 'specific'
+        project: '$(System.TeamProject)'
+        definition: '$(System.DefinitionId)'
+        buildVersionToDownload: 'latest'
+        artifactName: 'tfstate'
+        targetPath: '$(System.DefaultWorkingDirectory)'
       condition: eq('${{ parameters.action }}', 'destroy')
 
     # 🚀 Terraform Init (LOCAL STATE)
@@ -62,7 +66,6 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'plan'
-
         environmentServiceNameAzureRM: 'terraform_bootstarp'
 
         commandOptions: >
@@ -81,13 +84,11 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'apply'
-
         environmentServiceNameAzureRM: 'terraform_bootstarp'
-
         commandOptions: 'tfplan'
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # 📤 Upload State After Apply
+    # 📤 Upload Terraform State
     - task: PublishPipelineArtifact@1
       displayName: "Publish Terraform State"
       inputs:
@@ -95,13 +96,12 @@ stages:
         artifact: 'tfstate'
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # 📊 Destroy Plan
+    # 📊 Terraform Destroy Plan
     - task: TerraformTaskV4@4
       displayName: "Terraform Destroy Plan"
       inputs:
         provider: 'azurerm'
         command: 'plan'
-
         environmentServiceNameAzureRM: 'terraform_bootstarp'
 
         commandOptions: >
@@ -121,8 +121,6 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'apply'
-
         environmentServiceNameAzureRM: 'terraform_bootstarp'
-
         commandOptions: 'destroy.tfplan'
       condition: eq('${{ parameters.action }}', 'destroy')
