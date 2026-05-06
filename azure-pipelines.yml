@@ -20,12 +20,14 @@ variables:
 stages:
 - stage: Terraform
   displayName: "Terraform Stage"
+
   jobs:
   - job: TerraformJob
     displayName: "Terraform Execution"
+
     steps:
 
-    # 🔐 Azure Login
+    # 🔐 Azure Login using Service Connection
     - task: AzureCLI@2
       displayName: "Azure Login"
       inputs:
@@ -39,33 +41,52 @@ stages:
     - task: TerraformInstaller@1
       displayName: "Install Terraform"
       inputs:
-        terraformVersion: 'latest'
+        terraformVersion: '1.5.0'
 
-    # 🚀 Init
-    - script: terraform init
+    # 🚀 Terraform Init
+    - script: |
+        terraform init
       displayName: "Terraform Init"
 
-    # ✅ Format Check
-    - script: terraform fmt -check
+    # ✅ Terraform Format Check
+    - script: |
+        terraform fmt -check
       displayName: "Terraform Format Check"
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # ✅ Validate
-    - script: terraform validate
+    # ✅ Terraform Validate
+    - script: |
+        terraform validate
       displayName: "Terraform Validate"
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # 📊 Plan
-    - script: terraform plan -out=tfplan
+    # 📊 Terraform Plan
+    - script: |
+        terraform plan \
+        -var "resource_group_name=$(resource_group_name)" \
+        -var "location=$(location)" \
+        -var "environment=$(environment)" \
+        -var "storage_account_name=$(storage_account_name)" \
+        -var "container_name=$(container_name)" \
+        -var "key_vault_name=$(key_vault_name)" \
+        -out=tfplan
       displayName: "Terraform Plan"
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # 🚀 Apply
-    - script: terraform apply -auto-approve tfplan
+    # 🚀 Terraform Apply
+    - script: |
+        terraform apply -auto-approve tfplan
       displayName: "Terraform Apply"
       condition: eq('${{ parameters.action }}', 'apply')
 
-    # 💣 Destroy
-    - script: terraform destroy -auto-approve
+    # 💣 Terraform Destroy
+    - script: |
+        terraform destroy -auto-approve \
+        -var "resource_group_name=$(resource_group_name)" \
+        -var "location=$(location)" \
+        -var "environment=$(environment)" \
+        -var "storage_account_name=$(storage_account_name)" \
+        -var "container_name=$(container_name)" \
+        -var "key_vault_name=$(key_vault_name)"
       displayName: "Terraform Destroy"
       condition: eq('${{ parameters.action }}', 'destroy')
